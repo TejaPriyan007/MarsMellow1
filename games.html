@@ -147,12 +147,54 @@
             gap: 0.5rem;
         }
 
-        .sound-toggle {
+        .sound-toggle, .music-toggle {
             width: 50px;
             height: 50px;
             padding: 0;
             justify-content: center;
             font-size: 1.2rem;
+        }
+
+        .music-toggle.off {
+            background: linear-gradient(135deg, #64748b, #475569);
+            box-shadow: 0 5px 20px rgba(100, 116, 139, 0.4);
+        }
+
+        /* Mobile Game Controls */
+        .mobile-dpad {
+            display: none;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        .dpad-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid var(--primary);
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(236, 72, 153, 0.3));
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+        }
+        .dpad-btn:active {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.7), rgba(236, 72, 153, 0.7));
+            transform: scale(0.9);
+        }
+        .dpad-row {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+        @media (pointer: coarse), (max-width: 768px) {
+            .mobile-dpad { display: flex; }
         }
 
         .home-btn:hover, .sound-toggle:hover {
@@ -1681,13 +1723,14 @@
         <div class="header-buttons">
             <a href="index.html" class="home-btn">🏠 HOME</a>
             <button class="sound-toggle" id="soundToggle">🔊</button>
+            <button class="sound-toggle music-toggle" id="musicToggle" title="Background Music">🎵</button>
         </div>
     </header>
 
     <main>
         <div class="games-header">
             <h1 class="games-title">🎮 GAMES HUB 🎮</h1>
-            <p class="games-subtitle">24 Epic Player Games</p>
+            <p class="games-subtitle">18 Epic Player Games</p>
             <p class="games-tagline">Test your skills and have fun!</p>
         </div>
 
@@ -1876,7 +1919,112 @@
 
     <script>
         let soundEnabled = true;
+        let musicEnabled = true;
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // ===== BACKGROUND MUSIC =====
+        let bgMusic = null;
+        let bgMusicGain = null;
+        function initBgMusic() {
+            if (bgMusic) return;
+            bgMusicGain = audioContext.createGain();
+            bgMusicGain.gain.value = 0.08;
+            bgMusicGain.connect(audioContext.destination);
+            function playLoop() {
+                const now = audioContext.currentTime;
+                const bpm = 85;
+                const beat = 60 / bpm;
+                // Lo-fi chill chord progression: Dm7 - G7 - Cmaj7 - Am7
+                const chords = [
+                    [146.83, 174.61, 220, 261.63],
+                    [196, 246.94, 293.66, 349.23],
+                    [130.81, 164.81, 196, 246.94],
+                    [220, 261.63, 329.63, 392]
+                ];
+                const melodyNotes = [523.25, 0, 440, 493.88, 523.25, 0, 659.25, 587.33, 523.25, 0, 440, 392, 440, 0, 349.23, 392];
+                const totalDur = chords.length * beat * 4;
+                // Warm pad chords
+                chords.forEach((chord, ci) => {
+                    chord.forEach(freq => {
+                        const o = audioContext.createOscillator();
+                        const g = audioContext.createGain();
+                        o.connect(g); g.connect(bgMusicGain);
+                        o.type = 'sine';
+                        o.frequency.value = freq;
+                        const t = now + ci * beat * 4;
+                        g.gain.setValueAtTime(0, t);
+                        g.gain.linearRampToValueAtTime(0.06, t + 0.3);
+                        g.gain.setValueAtTime(0.06, t + beat * 3.5);
+                        g.gain.linearRampToValueAtTime(0, t + beat * 4);
+                        o.start(t); o.stop(t + beat * 4 + 0.1);
+                    });
+                });
+                // Melody (triangle, soft)
+                melodyNotes.forEach((freq, i) => {
+                    if (freq === 0) return;
+                    const o = audioContext.createOscillator();
+                    const g = audioContext.createGain();
+                    o.connect(g); g.connect(bgMusicGain);
+                    o.type = 'triangle';
+                    o.frequency.value = freq;
+                    const t = now + i * beat;
+                    g.gain.setValueAtTime(0.07, t);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + beat * 0.9);
+                    o.start(t); o.stop(t + beat);
+                });
+                // Lo-fi vinyl crackle
+                const crackle = audioContext.createBufferSource();
+                const cBuf = audioContext.createBuffer(1, audioContext.sampleRate * totalDur, audioContext.sampleRate);
+                const cData = cBuf.getChannelData(0);
+                for (let j = 0; j < cData.length; j++) cData[j] = (Math.random() * 2 - 1) * (Math.random() < 0.002 ? 0.3 : 0.008);
+                crackle.buffer = cBuf;
+                const cg = audioContext.createGain();
+                crackle.connect(cg); cg.connect(bgMusicGain);
+                cg.gain.value = 0.15;
+                crackle.start(now);
+                // Soft kick on beats 1 and 3
+                for (let ci = 0; ci < chords.length; ci++) {
+                    [0, 2].forEach(b => {
+                        const o = audioContext.createOscillator();
+                        const g = audioContext.createGain();
+                        o.connect(g); g.connect(bgMusicGain);
+                        o.type = 'sine';
+                        const t = now + ci * beat * 4 + b * beat;
+                        o.frequency.setValueAtTime(150, t);
+                        o.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+                        g.gain.setValueAtTime(0.12, t);
+                        g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+                        o.start(t); o.stop(t + 0.25);
+                    });
+                }
+                bgMusic = setTimeout(playLoop, totalDur * 1000 - 50);
+            }
+            playLoop();
+        }
+        function stopBgMusic() {
+            if (bgMusic) { clearTimeout(bgMusic); bgMusic = null; }
+        }
+        document.addEventListener('click', function startMusicOnce() {
+            if (audioContext.state === 'suspended') audioContext.resume();
+            if (musicEnabled) initBgMusic();
+            document.removeEventListener('click', startMusicOnce);
+        }, { once: true });
+
+        document.getElementById('musicToggle').addEventListener('click', () => {
+            musicEnabled = !musicEnabled;
+            const btn = document.getElementById('musicToggle');
+            if (musicEnabled) {
+                btn.textContent = '🎵';
+                btn.classList.remove('off');
+                if (audioContext.state === 'suspended') audioContext.resume();
+                initBgMusic();
+            } else {
+                btn.textContent = '🎵';
+                btn.classList.add('off');
+                stopBgMusic();
+                if (bgMusicGain) bgMusicGain.gain.value = 0;
+            }
+        });
 
         document.getElementById('soundToggle').addEventListener('click', () => {
             soundEnabled = !soundEnabled;
@@ -2009,9 +2157,13 @@
             } else if (gameId === 'car') {
                 document.getElementById('modalTitle').textContent = '🏎️ Nitro Rush';
                 content.innerHTML = `
-                    <div class="instructions">🚗 Use ARROW KEYS or A/D to move. Avoid red obstacles!</div>
+                    <div class="instructions">🚗 Use ARROW KEYS / A,D to move. On mobile use the buttons below!</div>
                     <div class="car-game">
                         <canvas id="carGameCanvas" width="500" height="400"></canvas>
+                    </div>
+                    <div class="mobile-dpad" id="carMobileControls">
+                        <button class="dpad-btn" id="carLeft" ontouchstart="carTouchKey('left',true)" ontouchend="carTouchKey('left',false)">⬅️</button>
+                        <button class="dpad-btn" id="carRight" ontouchstart="carTouchKey('right',true)" ontouchend="carTouchKey('right',false)">➡️</button>
                     </div>
                     <div class="score-display">Score: <span id="carScore">0</span></div>
                     <div class="game-controls">
@@ -2023,9 +2175,17 @@
             } else if (gameId === 'snake') {
                 document.getElementById('modalTitle').textContent = '🐍 Neon Snake';
                 content.innerHTML = `
-                    <div class="instructions">🎮 Use ARROW KEYS or WASD to move. Eat player icons to grow!</div>
+                    <div class="instructions">🎮 Use ARROW KEYS / WASD to move. On mobile use the buttons below!</div>
                     <div style="display:flex;justify-content:center;">
                         <canvas id="snakeCanvas" class="snake-canvas" width="400" height="400"></canvas>
+                    </div>
+                    <div class="mobile-dpad" id="snakeMobileControls" style="flex-direction:column;align-items:center;">
+                        <div class="dpad-row"><button class="dpad-btn" onclick="snakeTouchDir('up')">⬆️</button></div>
+                        <div class="dpad-row">
+                            <button class="dpad-btn" onclick="snakeTouchDir('left')">⬅️</button>
+                            <button class="dpad-btn" onclick="snakeTouchDir('down')">⬇️</button>
+                            <button class="dpad-btn" onclick="snakeTouchDir('right')">➡️</button>
+                        </div>
                     </div>
                     <div class="score-display">Score: <span id="snakeScore">0</span></div>
                     <div class="game-controls">
@@ -2705,6 +2865,10 @@
 
         // ===== CAR RACING =====
         let carRunning = false;
+        let carTouchKeys = {};
+        function carTouchKey(dir, pressed) {
+            carTouchKeys[dir] = pressed;
+        }
         function startCarGame() {
             const canvas = document.getElementById('carGameCanvas');
             const ctx = canvas.getContext('2d');
@@ -2722,8 +2886,8 @@
                 ctx.fillStyle = '#333';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                if (keys['ArrowLeft'] || keys['a']) carX = Math.max(0, carX - 7);
-                if (keys['ArrowRight'] || keys['d']) carX = Math.min(canvas.width - 50, carX + 7);
+                if (keys['ArrowLeft'] || keys['a'] || carTouchKeys['left']) carX = Math.max(0, carX - 7);
+                if (keys['ArrowRight'] || keys['d'] || carTouchKeys['right']) carX = Math.min(canvas.width - 50, carX + 7);
 
                 ctx.fillStyle = '#FF6B6B';
                 ctx.fillRect(carX, carY, 50, 40);
@@ -2762,6 +2926,15 @@
 
         // ===== NEON SNAKE =====
         let snakeInterval = null;
+        let snakeNextDirRef = null;
+        let snakeDirRef = null;
+        function snakeTouchDir(d) {
+            if (!snakeNextDirRef || !snakeDirRef) return;
+            if (d === 'up' && snakeDirRef.y !== 1) { snakeNextDirRef.x = 0; snakeNextDirRef.y = -1; }
+            else if (d === 'down' && snakeDirRef.y !== -1) { snakeNextDirRef.x = 0; snakeNextDirRef.y = 1; }
+            else if (d === 'left' && snakeDirRef.x !== 1) { snakeNextDirRef.x = -1; snakeNextDirRef.y = 0; }
+            else if (d === 'right' && snakeDirRef.x !== -1) { snakeNextDirRef.x = 1; snakeNextDirRef.y = 0; }
+        }
         function initSnake() {
             if (snakeInterval) clearInterval(snakeInterval);
             const canvas = document.getElementById('snakeCanvas');
@@ -2773,10 +2946,33 @@
             let snake = [{x: 10, y: 10}];
             let dir = {x: 1, y: 0};
             let nextDir = {x: 1, y: 0};
+            snakeDirRef = dir;
+            snakeNextDirRef = nextDir;
             let food = spawnFood();
             let foodEmoji = playerEmojis[Math.floor(Math.random() * playerEmojis.length)];
             let score = 0;
             let running = true;
+
+            // Swipe detection on canvas
+            let touchStartX = 0, touchStartY = 0;
+            canvas.addEventListener('touchstart', (e) => {
+                const t = e.touches[0];
+                touchStartX = t.clientX; touchStartY = t.clientY;
+                e.preventDefault();
+            }, {passive: false});
+            canvas.addEventListener('touchend', (e) => {
+                const t = e.changedTouches[0];
+                const dx = t.clientX - touchStartX;
+                const dy = t.clientY - touchStartY;
+                const absDx = Math.abs(dx), absDy = Math.abs(dy);
+                if (Math.max(absDx, absDy) < 20) return;
+                if (absDx > absDy) {
+                    snakeTouchDir(dx > 0 ? 'right' : 'left');
+                } else {
+                    snakeTouchDir(dy > 0 ? 'down' : 'up');
+                }
+                e.preventDefault();
+            }, {passive: false});
 
             function spawnFood() {
                 let pos;
@@ -2813,7 +3009,8 @@
 
             function update() {
                 if (!running) return;
-                dir = nextDir;
+                dir = {x: nextDir.x, y: nextDir.y};
+                snakeDirRef = dir;
                 const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
                 if (head.x < 0) head.x = tileCount - 1;
                 if (head.x >= tileCount) head.x = 0;
@@ -4719,5 +4916,4 @@
         });
     </script>
 </body>
-
 </html>

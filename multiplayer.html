@@ -234,7 +234,7 @@
     <div class="nav-bar">
         <a href="index.html" class="back-btn">🏠 HOME</a>
         <div class="nav-brand">🍡 MARS MELLOW GC</div>
-        <div style="width: 100px;"></div>
+        <button id="musicToggle" style="width:45px;height:45px;border-radius:50%;border:2px solid rgba(139,92,246,0.4);background:rgba(139,92,246,0.2);color:#c084fc;font-size:1.2rem;cursor:pointer;transition:all 0.3s" onclick="toggleBgMusic()">🎵</button>
     </div>
     <div class="header">
         <h1>🎮 3D GAMES</h1>
@@ -243,14 +243,14 @@
     </div>
     <div class="games-container">
         <div class="game-card green" onclick="location.href='game1.html'">
-            <div class="game-icon">🌀</div>
-            <div class="game-title">Maze Survival 3D</div>
+            <div class="game-icon">⚔️</div>
+            <div class="game-title">Arena Knockout 3D</div>
             <div class="game-tags">
-                <span class="tag">Puzzle</span>
+                <span class="tag">Battle</span>
                 <span class="tag">Survival</span>
-                <span class="tag">FPS</span>
+                <span class="tag">3D</span>
             </div>
-            <div class="game-description">Navigate through shifting neon corridors filled with traps and enemies. Find power-ups and reach the exit portal before time runs out!</div>
+            <div class="game-description">Choose your fighter and battle 24 players in a shrinking 3D arena! Use attacks, specials and dashes to be the last one standing!</div>
             <button class="play-btn">▶ PLAY NOW</button>
         </div>
         <div class="game-card orange" onclick="location.href='game2.html'">
@@ -266,6 +266,69 @@
         </div>
     </div>
     <div class="footer">🍡 Mars Mellow GC &copy; 2025 — All Rights Reserved</div>
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let bgMusicEnabled = true, bgMusicTimer = null, bgMusicGain = null;
+        function initBgMusic() {
+            if (bgMusicTimer) return;
+            bgMusicGain = audioCtx.createGain();
+            bgMusicGain.gain.value = 0.06;
+            bgMusicGain.connect(audioCtx.destination);
+            function playLoop() {
+                const now = audioCtx.currentTime;
+                const bpm = 72; const beat = 60 / bpm;
+                const totalDur = beat * 16;
+                // Deep ambient pads: Cm9 slowly shifting
+                const padSets = [
+                    [130.81, 155.56, 196, 233.08, 293.66],
+                    [116.54, 146.83, 174.61, 220, 277.18],
+                    [103.83, 130.81, 164.81, 196, 246.94],
+                    [116.54, 146.83, 174.61, 220, 261.63]
+                ];
+                padSets.forEach((pad, pi) => {
+                    pad.forEach(freq => {
+                        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                        o.connect(g); g.connect(bgMusicGain);
+                        o.type = 'sine';
+                        o.frequency.value = freq;
+                        const t = now + pi * beat * 4;
+                        g.gain.setValueAtTime(0, t);
+                        g.gain.linearRampToValueAtTime(0.04, t + beat * 1.5);
+                        g.gain.setValueAtTime(0.04, t + beat * 3);
+                        g.gain.linearRampToValueAtTime(0, t + beat * 4);
+                        o.start(t); o.stop(t + beat * 4 + 0.1);
+                    });
+                });
+                // Gentle sparkle notes (random-ish high pings)
+                const sparkles = [784, 880, 1047, 987.77, 1175, 1319, 1047, 880];
+                sparkles.forEach((freq, i) => {
+                    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                    o.connect(g); g.connect(bgMusicGain);
+                    o.type = 'sine'; o.frequency.value = freq;
+                    const t = now + i * beat * 2;
+                    g.gain.setValueAtTime(0.05, t);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + beat * 1.5);
+                    o.start(t); o.stop(t + beat * 2);
+                });
+                // Sub bass hum
+                const sub = audioCtx.createOscillator(), sg = audioCtx.createGain();
+                sub.connect(sg); sg.connect(bgMusicGain);
+                sub.type = 'sine'; sub.frequency.value = 55;
+                sg.gain.setValueAtTime(0.06, now);
+                sub.start(now); sub.stop(now + totalDur);
+                bgMusicTimer = setTimeout(playLoop, totalDur * 1000 - 50);
+            }
+            playLoop();
+        }
+        function stopBgMusic() { if (bgMusicTimer) { clearTimeout(bgMusicTimer); bgMusicTimer = null; } if (bgMusicGain) bgMusicGain.gain.value = 0; }
+        function toggleBgMusic() {
+            bgMusicEnabled = !bgMusicEnabled;
+            const btn = document.getElementById('musicToggle');
+            if (bgMusicEnabled) { btn.textContent = '🎵'; if(audioCtx.state==='suspended') audioCtx.resume(); bgMusicGain&&(bgMusicGain.gain.value=0.06); initBgMusic(); }
+            else { btn.textContent = '🔇'; stopBgMusic(); }
+        }
+        document.addEventListener('click', function s() { if(audioCtx.state==='suspended') audioCtx.resume(); if(bgMusicEnabled) initBgMusic(); document.removeEventListener('click',s); }, {once:true});
+    </script>
 </body>
 </html>
  

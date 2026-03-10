@@ -177,6 +177,9 @@ canvas{display:block;position:fixed;top:0;left:0;z-index:1}
 </div>
 </div>
 
+<!-- MUSIC TOGGLE -->
+<button id="musicToggle" style="position:fixed;top:15px;right:15px;z-index:500;width:50px;height:50px;border-radius:50%;border:2px solid rgba(139,92,246,0.4);background:rgba(139,92,246,0.2);color:#c084fc;font-size:1.3rem;cursor:pointer;backdrop-filter:blur(4px);transition:all 0.3s" onclick="toggleBgMusic()">🎵</button>
+
 <div id="dmgFlash"></div>
 
 <!-- GAME OVER -->
@@ -220,7 +223,7 @@ const ALL_PLAYERS = [
   {name:'Jaima', emoji:'🦊', color:0xfb923c, img:'https://i.ibb.co/ymcxf3WP/Screenshot-2026-03-10-133753.png', atk:7, def:9, spd:9, sp:'Fox Spirit'}
 ];
 
-const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
+const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 let selectedIdx = -1;
 let scene, camera, renderer, clock;
 let gameActive = false;
@@ -1232,12 +1235,123 @@ function animate(){
   renderer.render(scene, camera);
 }
 
+// ========== BACKGROUND MUSIC ==========
+let bgMusicEnabled = true;
+let bgMusicTimer = null;
+let bgMusicGain = null;
+function initBgMusic() {
+  if (bgMusicTimer) return;
+  bgMusicGain = audioCtx.createGain();
+  bgMusicGain.gain.value = 0.06;
+  bgMusicGain.connect(audioCtx.destination);
+  function playLoop() {
+    const now = audioCtx.currentTime;
+    const bpm = 150;
+    const beat = 60 / bpm;
+    // Dark epic battle theme: Em - C - D - Bm
+    const bassPattern = [82.41, 82.41, 65.41, 65.41, 73.42, 73.42, 61.74, 61.74, 82.41, 82.41, 65.41, 65.41, 73.42, 73.42, 82.41, 61.74];
+    const powerChords = [
+      [164.81, 246.94, 329.63], [164.81, 246.94, 329.63],
+      [130.81, 196, 261.63], [130.81, 196, 261.63],
+      [146.83, 220, 293.66], [146.83, 220, 293.66],
+      [123.47, 185.00, 246.94], [123.47, 185.00, 246.94]
+    ];
+    const totalDur = bassPattern.length * beat;
+    // Heavy distorted bass
+    bassPattern.forEach((freq, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      const dist = audioCtx.createWaveShaper();
+      const curve = new Float32Array(256);
+      for(let k=0;k<256;k++){const x=k/128-1;curve[k]=x*0.7/(1+Math.abs(x));}
+      dist.curve = curve;
+      o.connect(dist); dist.connect(g); g.connect(bgMusicGain);
+      o.type = 'sawtooth'; o.frequency.value = freq;
+      const t = now + i * beat;
+      g.gain.setValueAtTime(0.15, t);
+      g.gain.exponentialRampToValueAtTime(0.01, t + beat * 0.85);
+      o.start(t); o.stop(t + beat * 0.9);
+    });
+    // Power chords (every 2 beats)
+    powerChords.forEach((chord, ci) => {
+      chord.forEach(freq => {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.connect(g); g.connect(bgMusicGain);
+        o.type = 'sawtooth'; o.frequency.value = freq;
+        const t = now + ci * beat * 2;
+        g.gain.setValueAtTime(0.04, t);
+        g.gain.setValueAtTime(0.04, t + beat * 1.5);
+        g.gain.exponentialRampToValueAtTime(0.001, t + beat * 2);
+        o.start(t); o.stop(t + beat * 2 + 0.05);
+      });
+    });
+    // War drums (kick + snare pattern)
+    for (let i = 0; i < 16; i++) {
+      const t = now + i * beat;
+      if (i % 4 === 0 || i % 4 === 3) {
+        // Kick drum
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.connect(g); g.connect(bgMusicGain);
+        o.frequency.setValueAtTime(180, t);
+        o.frequency.exponentialRampToValueAtTime(30, t + 0.15);
+        g.gain.setValueAtTime(0.2, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        o.start(t); o.stop(t + 0.25);
+      }
+      if (i % 4 === 2) {
+        // Snare hit
+        const n = audioCtx.createBufferSource();
+        const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+        const d = buf.getChannelData(0);
+        for(let j=0;j<d.length;j++) d[j]=(Math.random()*2-1)*Math.pow(1-j/d.length,3);
+        n.buffer = buf;
+        const g = audioCtx.createGain();
+        n.connect(g); g.connect(bgMusicGain);
+        g.gain.value = 0.12;
+        n.start(t);
+      }
+    }
+    // High tension string melody
+    const melody = [659.25, 0, 587.33, 659.25, 783.99, 0, 659.25, 587.33, 523.25, 0, 587.33, 523.25, 440, 0, 493.88, 523.25];
+    melody.forEach((freq, i) => {
+      if (freq === 0) return;
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.connect(g); g.connect(bgMusicGain);
+      o.type = 'triangle'; o.frequency.value = freq;
+      const t = now + i * beat;
+      g.gain.setValueAtTime(0.05, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + beat * 0.8);
+      o.start(t); o.stop(t + beat);
+    });
+    bgMusicTimer = setTimeout(playLoop, totalDur * 1000 - 50);
+  }
+  playLoop();
+}
+function stopBgMusic() {
+  if (bgMusicTimer) { clearTimeout(bgMusicTimer); bgMusicTimer = null; }
+  if (bgMusicGain) bgMusicGain.gain.value = 0;
+}
+function toggleBgMusic() {
+  bgMusicEnabled = !bgMusicEnabled;
+  const btn = document.getElementById('musicToggle');
+  if (bgMusicEnabled) {
+    btn.textContent = '🎵';
+    btn.style.borderColor = 'rgba(139,92,246,0.4)';
+    bgMusicGain && (bgMusicGain.gain.value = 0.06);
+    initBgMusic();
+  } else {
+    btn.textContent = '🔇';
+    btn.style.borderColor = 'rgba(100,116,139,0.4)';
+    stopBgMusic();
+  }
+}
+
 // ========== START ==========
 buildCharSelect();
 
 document.getElementById('csStart').addEventListener('click', () => {
   if(selectedIdx < 0) return;
   audioCtx.resume();
+  if(bgMusicEnabled) initBgMusic();
   
   document.getElementById('charSelect').style.display = 'none';
   document.getElementById('hud').style.display = 'block';

@@ -265,6 +265,9 @@ transition:opacity 0.1s ease;
 <!-- SCREEN FLASH -->
 <div class="screen-flash" id="screenFlash"></div>
 
+<!-- MUSIC TOGGLE -->
+<button id="musicToggle" style="position:fixed;top:15px;left:15px;z-index:500;width:50px;height:50px;border-radius:50%;border:2px solid #ff6b0060;background:rgba(255,107,0,0.15);color:#ff6b00;font-size:1.3rem;cursor:pointer;backdrop-filter:blur(4px);transition:all 0.3s" onclick="toggleBgMusic()">🎵</button>
+
 <!-- WATERMARK -->
 <div class="watermark">🍡 MARS MELLOW GC</div>
 
@@ -688,6 +691,7 @@ pickups.push({mesh,type});
 // ========== GAME LOGIC ==========
 function startGame(){
 initAudio();
+if(bgMusicEnabled) initBgMusic();
 document.getElementById('startScreen').style.display='none';
 document.getElementById('hud').style.display='block';
 document.getElementById('boostContainer').style.display='block';
@@ -1051,6 +1055,105 @@ camera.aspect=window.innerWidth/window.innerHeight;
 camera.updateProjectionMatrix();
 renderer.setSize(window.innerWidth,window.innerHeight);
 });
+
+// ========== BACKGROUND MUSIC ==========
+let bgMusicEnabled = true;
+let bgMusicTimer = null;
+let bgMusicGain = null;
+function initBgMusic() {
+  if (bgMusicTimer) return;
+  if (!audioCtx) initAudio();
+  bgMusicGain = audioCtx.createGain();
+  bgMusicGain.gain.value = 0.06;
+  bgMusicGain.connect(audioCtx.destination);
+  function playLoop() {
+    const now = audioCtx.currentTime;
+    const bpm = 128;
+    const beat = 60 / bpm;
+    const totalBeats = 16;
+    const totalDur = totalBeats * beat;
+    // Synthwave bass: Am arpeggiated
+    const bassLine = [55, 0, 55, 69.30, 55, 0, 82.41, 73.42, 65.41, 0, 65.41, 82.41, 65.41, 0, 73.42, 65.41];
+    bassLine.forEach((freq, i) => {
+      if (freq === 0) return;
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.connect(g); g.connect(bgMusicGain);
+      o.type = 'sawtooth'; o.frequency.value = freq;
+      const t = now + i * beat;
+      g.gain.setValueAtTime(0.14, t);
+      g.gain.exponentialRampToValueAtTime(0.01, t + beat * 0.85);
+      o.start(t); o.stop(t + beat * 0.9);
+    });
+    // Synthwave lead arpeggio
+    const arp = [440, 523.25, 659.25, 523.25, 440, 523.25, 659.25, 783.99, 440, 523.25, 659.25, 523.25, 392, 440, 523.25, 440];
+    arp.forEach((freq, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.connect(g); g.connect(bgMusicGain);
+      o.type = 'square'; o.frequency.value = freq;
+      const t = now + i * beat;
+      g.gain.setValueAtTime(0.035, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + beat * 0.7);
+      o.start(t); o.stop(t + beat * 0.75);
+    });
+    // Driving kick on every beat
+    for (let i = 0; i < totalBeats; i++) {
+      const t = now + i * beat;
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.connect(g); g.connect(bgMusicGain);
+      o.frequency.setValueAtTime(200, t);
+      o.frequency.exponentialRampToValueAtTime(35, t + 0.1);
+      g.gain.setValueAtTime(0.18, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+      o.start(t); o.stop(t + 0.2);
+    }
+    // Off-beat hi-hat
+    for (let i = 0; i < totalBeats * 2; i++) {
+      if (i % 2 === 0) continue;
+      const t = now + i * beat / 2;
+      const n = audioCtx.createBufferSource();
+      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.04, audioCtx.sampleRate);
+      const d = buf.getChannelData(0);
+      for(let j=0;j<d.length;j++) d[j]=(Math.random()*2-1)*Math.pow(1-j/d.length,10);
+      n.buffer = buf;
+      const g = audioCtx.createGain();
+      n.connect(g); g.connect(bgMusicGain);
+      g.gain.value = 0.06;
+      n.start(t);
+    }
+    // Synth pad wash
+    [220, 261.63, 329.63].forEach(freq => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.connect(g); g.connect(bgMusicGain);
+      o.type = 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(0.025, now + 1);
+      g.gain.setValueAtTime(0.025, now + totalDur - 1);
+      g.gain.linearRampToValueAtTime(0, now + totalDur);
+      o.start(now); o.stop(now + totalDur + 0.1);
+    });
+    bgMusicTimer = setTimeout(playLoop, totalDur * 1000 - 50);
+  }
+  playLoop();
+}
+function stopBgMusic() {
+  if (bgMusicTimer) { clearTimeout(bgMusicTimer); bgMusicTimer = null; }
+  if (bgMusicGain) bgMusicGain.gain.value = 0;
+}
+function toggleBgMusic() {
+  bgMusicEnabled = !bgMusicEnabled;
+  const btn = document.getElementById('musicToggle');
+  if (bgMusicEnabled) {
+    btn.textContent = '🎵';
+    btn.style.borderColor = '#ff6b0060';
+    if (!audioCtx) initAudio();
+    bgMusicGain && (bgMusicGain.gain.value = 0.06);
+    initBgMusic();
+  } else {
+    btn.textContent = '🔇';
+    btn.style.borderColor = 'rgba(100,116,139,0.4)';
+    stopBgMusic();
+  }
+}
 
 // ========== INIT ==========
 initScene();
