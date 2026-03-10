@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Cyber Racer 3D - Mars Mellow GC</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#0a0012;font-family:'Segoe UI',Arial,sans-serif;touch-action:none;user-select:none}
+canvas{display:block}
+
+/* START SCREEN */
+#startScreen{
+position:fixed;top:0;left:0;width:100%;height:100%;
+background:linear-gradient(180deg,#1a0a2e 0%,#0a0012 40%,#2d1b00 70%,#ff6b00 95%,#ff2d95 100%);
+z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+#startScreen .sun{
+width:200px;height:200px;border-radius:50%;
+background:linear-gradient(180deg,#ffdd00,#ff6b00,#ff2d95);
+box-shadow:0 0 80px #ff6b00,0 0 160px #ff2d9580;
+margin-bottom:30px;
+animation:sunPulse 3s ease-in-out infinite;
+}
+@keyframes sunPulse{0%,100%{transform:scale(1);box-shadow:0 0 80px #ff6b00,0 0 160px #ff2d9580}50%{transform:scale(1.05);box-shadow:0 0 120px #ff6b00,0 0 200px #ff2d9580}}
+#startScreen h1{
+font-size:clamp(2.5rem,8vw,5rem);font-weight:900;letter-spacing:4px;
+background:linear-gradient(135deg,#ff6b00,#ff2d95,#ffdd00);
+-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+text-shadow:none;margin-bottom:10px;text-align:center;
+}
+#startScreen .sub{color:#ff9f43;font-size:1.1rem;letter-spacing:3px;margin-bottom:30px;text-transform:uppercase}
+#startScreen .controls-info{
+color:#ffb88060;font-size:0.85rem;max-width:400px;text-align:center;line-height:1.8;margin-bottom:30px;
+background:rgba(255,107,0,0.1);border:1px solid #ff6b0030;border-radius:15px;padding:15px 20px;
+}
+#startScreen .controls-info span{color:#ff6b00;font-weight:700}
+#startBtn{
+background:linear-gradient(135deg,#ff6b00,#ff2d95);color:white;border:none;
+padding:18px 60px;font-size:1.3rem;font-weight:800;border-radius:50px;cursor:pointer;
+letter-spacing:3px;text-transform:uppercase;
+box-shadow:0 10px 40px #ff6b0060;
+transition:all 0.3s ease;
+}
+#startBtn:hover{transform:translateY(-5px) scale(1.05);box-shadow:0 20px 60px #ff2d9580}
+.brand-start{color:#ff6b0050;font-size:0.8rem;position:absolute;bottom:20px;letter-spacing:2px}
+
+/* HUD */
+#hud{
+position:fixed;top:0;left:0;width:100%;z-index:10;pointer-events:none;
+display:none;padding:15px;
+}
+.hud-top{
+display:flex;justify-content:space-between;align-items:flex-start;width:100%;
+}
+.hud-score{
+font-size:clamp(1.5rem,5vw,2.5rem);font-weight:900;color:#ffdd00;
+text-shadow:0 0 20px #ff6b0080;letter-spacing:2px;
+}
+.hud-combo{
+font-size:clamp(0.9rem,3vw,1.2rem);color:#ff2d95;font-weight:700;
+text-shadow:0 0 10px #ff2d9560;margin-top:5px;
+transition:all 0.2s ease;
+}
+.hud-right{text-align:right}
+.hud-speed{
+font-size:clamp(1rem,3vw,1.5rem);font-weight:800;color:#ff6b00;
+text-shadow:0 0 15px #ff6b0060;
+}
+.hud-speed-unit{font-size:0.7em;color:#ff9f4380}
+.hud-distance{
+font-size:0.85rem;color:#ff9f4360;margin-top:5px;
+}
+
+/* BOOST BAR */
+.boost-container{
+position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:10;
+width:min(300px,60vw);display:none;pointer-events:none;
+}
+.boost-label{color:#ff6b0080;font-size:0.75rem;text-align:center;margin-bottom:5px;letter-spacing:2px;text-transform:uppercase}
+.boost-bar-bg{
+width:100%;height:8px;background:#1a0a2e;border-radius:4px;overflow:hidden;
+border:1px solid #ff6b0030;
+}
+.boost-bar-fill{
+width:100%;height:100%;
+background:linear-gradient(90deg,#ff2d95,#ff6b00,#ffdd00);
+border-radius:4px;transition:width 0.3s ease;
+}
+
+/* MOBILE CONTROLS */
+.mobile-controls{
+position:fixed;bottom:20px;left:0;width:100%;z-index:20;
+display:none;justify-content:space-between;align-items:flex-end;padding:0 20px;
+}
+.lane-btns{display:flex;gap:10px}
+.lane-btn{
+width:70px;height:70px;border-radius:50%;border:2px solid #ff6b0060;
+background:radial-gradient(circle,#ff6b0030,#ff2d9510);
+color:#ff6b00;font-size:1.8rem;cursor:pointer;
+display:flex;align-items:center;justify-content:center;
+transition:all 0.2s ease;-webkit-tap-highlight-color:transparent;
+}
+.lane-btn:active{background:radial-gradient(circle,#ff6b0060,#ff2d9530);transform:scale(0.9);border-color:#ff6b00}
+.boost-btn{
+width:80px;height:80px;border-radius:50%;
+border:2px solid #ffdd0060;
+background:radial-gradient(circle,#ffdd0020,#ff6b0010);
+color:#ffdd00;font-size:1.5rem;font-weight:900;cursor:pointer;
+display:flex;align-items:center;justify-content:center;
+-webkit-tap-highlight-color:transparent;transition:all 0.2s ease;
+}
+.boost-btn:active{background:radial-gradient(circle,#ffdd0050,#ff6b0030);transform:scale(0.9)}
+
+/* PAUSE */
+#pauseBtn{
+position:fixed;top:15px;right:15px;z-index:20;
+width:45px;height:45px;border-radius:12px;
+background:rgba(255,107,0,0.15);border:1px solid #ff6b0040;
+color:#ff6b00;font-size:1.3rem;cursor:pointer;
+display:none;align-items:center;justify-content:center;
+pointer-events:all;transition:all 0.3s ease;
+}
+#pauseBtn:hover{background:rgba(255,107,0,0.3)}
+
+/* PAUSE OVERLAY */
+#pauseOverlay{
+position:fixed;top:0;left:0;width:100%;height:100%;
+background:rgba(10,0,18,0.9);z-index:50;
+display:none;flex-direction:column;align-items:center;justify-content:center;
+backdrop-filter:blur(10px);
+}
+#pauseOverlay h2{
+font-size:3rem;font-weight:900;color:#ff6b00;margin-bottom:30px;letter-spacing:4px;
+text-shadow:0 0 30px #ff6b0060;
+}
+.pause-btn{
+background:linear-gradient(135deg,#ff6b00,#ff2d95);color:white;border:none;
+padding:15px 40px;font-size:1rem;font-weight:700;border-radius:12px;cursor:pointer;
+margin:8px;letter-spacing:1px;transition:all 0.3s ease;min-width:200px;
+}
+.pause-btn:hover{transform:translateY(-3px);box-shadow:0 10px 30px #ff6b0060}
+.pause-btn.secondary{background:linear-gradient(135deg,#333,#555)}
+
+/* GAME OVER */
+#gameOver{
+position:fixed;top:0;left:0;width:100%;height:100%;
+background:rgba(10,0,18,0.95);z-index:60;
+display:none;flex-direction:column;align-items:center;justify-content:center;
+backdrop-filter:blur(15px);
+}
+#gameOver h2{
+font-size:clamp(2rem,6vw,3.5rem);font-weight:900;
+background:linear-gradient(135deg,#ff6b00,#ff2d95);
+-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+margin-bottom:10px;
+}
+.final-score{
+font-size:clamp(3rem,10vw,5rem);font-weight:900;color:#ffdd00;
+text-shadow:0 0 40px #ff6b0060;margin-bottom:5px;
+}
+.final-details{
+color:#ff9f4360;font-size:0.9rem;margin-bottom:30px;
+}
+.go-btn{
+background:linear-gradient(135deg,#ff6b00,#ff2d95);color:white;border:none;
+padding:15px 40px;font-size:1rem;font-weight:700;border-radius:12px;cursor:pointer;
+margin:8px;letter-spacing:1px;transition:all 0.3s ease;min-width:200px;
+}
+.go-btn:hover{transform:translateY(-3px);box-shadow:0 10px 30px #ff6b0060}
+.go-btn.secondary{background:linear-gradient(135deg,#333,#555)}
+
+/* WATERMARK */
+.watermark{
+position:fixed;bottom:10px;left:50%;transform:translateX(-50%);
+color:#ff6b0015;font-size:0.7rem;letter-spacing:2px;z-index:5;pointer-events:none;
+}
+
+/* COIN POPUP */
+.coin-popup{
+position:fixed;z-index:15;color:#ffdd00;font-weight:900;font-size:1.5rem;
+pointer-events:none;text-shadow:0 0 10px #ff6b00;
+animation:coinPop 0.8s ease-out forwards;
+}
+@keyframes coinPop{
+0%{opacity:1;transform:translateY(0) scale(1)}
+100%{opacity:0;transform:translateY(-60px) scale(1.5)}
+}
+
+/* SCREEN FLASH */
+.screen-flash{
+position:fixed;top:0;left:0;width:100%;height:100%;
+pointer-events:none;z-index:8;opacity:0;
+transition:opacity 0.1s ease;
+}
+
+@media(max-width:768px){
+.boost-container{bottom:160px}
+}
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+<div id="startScreen">
+<div class="sun"></div>
+<h1>CYBER RACER</h1>
+<div class="sub">⚡ SYNTHWAVE SPEED ⚡</div>
+<div class="controls-info">
+<span>Desktop:</span> ← → or A/D to switch lanes | Space to boost<br>
+<span>Mobile:</span> Swipe or tap arrows | Tap BOOST button
+</div>
+<button id="startBtn" onclick="startGame()">🏎️ RACE</button>
+<div class="brand-start">🍡 MARS MELLOW GC</div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+<div class="hud-top">
+<div>
+<div class="hud-score" id="scoreDisplay">0</div>
+<div class="hud-combo" id="comboDisplay"></div>
+</div>
+<div class="hud-right">
+<div class="hud-speed"><span id="speedDisplay">0</span><span class="hud-speed-unit"> KM/H</span></div>
+<div class="hud-distance"><span id="distDisplay">0</span>m</div>
+</div>
+</div>
+</div>
+
+<!-- BOOST BAR -->
+<div class="boost-container" id="boostContainer">
+<div class="boost-label">⚡ BOOST</div>
+<div class="boost-bar-bg"><div class="boost-bar-fill" id="boostFill"></div></div>
+</div>
+
+<!-- MOBILE CONTROLS -->
+<div class="mobile-controls" id="mobileControls">
+<div class="lane-btns">
+<button class="lane-btn" ontouchstart="mobileLeft()" onclick="mobileLeft()">◀</button>
+<button class="lane-btn" ontouchstart="mobileRight()" onclick="mobileRight()">▶</button>
+</div>
+<button class="boost-btn" ontouchstart="activateBoost()" onclick="activateBoost()">⚡</button>
+</div>
+
+<!-- PAUSE BUTTON -->
+<button id="pauseBtn" onclick="togglePause()">⏸</button>
+
+<!-- PAUSE OVERLAY -->
+<div id="pauseOverlay">
+<h2>⏸ PAUSED</h2>
+<button class="pause-btn" onclick="togglePause()">▶ RESUME</button>
+<button class="pause-btn secondary" onclick="backToHub()">🏠 BACK TO HUB</button>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameOver">
+<h2>WRECKED!</h2>
+<div class="final-score" id="finalScore">0</div>
+<div class="final-details" id="finalDetails">Distance: 0m | Top Speed: 0 KM/H</div>
+<button class="go-btn" onclick="restartGame()">🔄 RACE AGAIN</button>
+<button class="go-btn secondary" onclick="backToHub()">🏠 BACK TO HUB</button>
+</div>
+
+<!-- SCREEN FLASH -->
+<div class="screen-flash" id="screenFlash"></div>
+
+<!-- WATERMARK -->
+<div class="watermark">🍡 MARS MELLOW GC</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+// ========== AUDIO ENGINE ==========
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function initAudio(){if(!audioCtx) audioCtx = new AudioCtx();}
+
+function playTone(freq,type,dur,vol,detune){
+if(!audioCtx) return;
+const now=audioCtx.currentTime;
+const osc=audioCtx.createOscillator();
+const gain=audioCtx.createGain();
+osc.connect(gain);gain.connect(audioCtx.destination);
+osc.frequency.value=freq;osc.type=type||'sine';
+if(detune) osc.detune.value=detune;
+gain.gain.setValueAtTime(vol||0.1,now);
+gain.gain.exponentialRampToValueAtTime(0.001,now+dur);
+osc.start(now);osc.stop(now+dur);
+}
+
+function sfxCoin(){
+playTone(880,'sine',0.08,0.1);
+setTimeout(()=>playTone(1320,'sine',0.08,0.08),40);
+setTimeout(()=>playTone(1760,'sine',0.06,0.06),80);
+}
+function sfxLaneChange(){
+playTone(220,'sine',0.06,0.06);
+playTone(330,'sine',0.05,0.04);
+}
+function sfxBoost(){
+if(!audioCtx) return;
+const now=audioCtx.currentTime;
+// Rising whoosh
+const osc1=audioCtx.createOscillator();
+const gain1=audioCtx.createGain();
+osc1.connect(gain1);gain1.connect(audioCtx.destination);
+osc1.type='sine';osc1.frequency.setValueAtTime(120,now);
+osc1.frequency.exponentialRampToValueAtTime(600,now+0.35);
+gain1.gain.setValueAtTime(0.1,now);
+gain1.gain.exponentialRampToValueAtTime(0.001,now+0.4);
+osc1.start(now);osc1.stop(now+0.4);
+// Punch layer
+playTone(80,'triangle',0.25,0.08);
+}
+function sfxCrash(){
+if(!audioCtx) return;
+const now=audioCtx.currentTime;
+// Metallic crunch noise
+const bufSize=Math.floor(audioCtx.sampleRate*0.25);
+const buf=audioCtx.createBuffer(1,bufSize,audioCtx.sampleRate);
+const data=buf.getChannelData(0);
+for(let i=0;i<bufSize;i++){
+const env=Math.pow(1-i/bufSize,3);
+data[i]=(Math.random()*2-1)*env*0.8;
+if(i%4<2) data[i]*=0.6; // rough crunch texture
+}
+const src=audioCtx.createBufferSource();
+const gain=audioCtx.createGain();
+const filter=audioCtx.createBiquadFilter();
+filter.type='lowpass';filter.frequency.value=2000;
+src.buffer=buf;src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);
+gain.gain.setValueAtTime(0.25,now);
+gain.gain.exponentialRampToValueAtTime(0.001,now+0.25);
+src.start(now);
+// Impact thump
+playTone(50,'sine',0.3,0.15);
+setTimeout(()=>playTone(35,'sine',0.2,0.08),30);
+}
+function sfxEngine(speed){
+if(!audioCtx) return;
+}
+
+// Ambient engine drone — deeper V8-style rumble
+let engineOsc,engineOsc2,engineGain;
+function startEngineDrone(){
+if(!audioCtx) return;
+engineGain=audioCtx.createGain();
+engineGain.connect(audioCtx.destination);
+engineGain.gain.value=0.015;
+// Primary low rumble
+engineOsc=audioCtx.createOscillator();
+engineOsc.type='triangle';engineOsc.frequency.value=42;
+engineOsc.connect(engineGain);engineOsc.start();
+// Harmonic overtone
+engineOsc2=audioCtx.createOscillator();
+engineOsc2.type='sine';engineOsc2.frequency.value=84;
+const g2=audioCtx.createGain();g2.gain.value=0.4;
+engineOsc2.connect(g2);g2.connect(engineGain);
+engineOsc2.start();
+}
+function updateEngineDrone(speed){
+if(!engineOsc) return;
+const baseFreq=42+speed*0.35;
+engineOsc.frequency.value=baseFreq;
+engineOsc2.frequency.value=baseFreq*2;
+engineGain.gain.value=Math.min(0.035,0.012+speed*0.00008);
+}
+function stopEngineDrone(){
+if(engineOsc){try{engineOsc.stop();}catch(e){} engineOsc=null;}
+}
+
+// ========== GAME STATE ==========
+let scene,camera,renderer;
+let gameRunning=false,gamePaused=false,gameOverState=false;
+let score=0,combo=0,comboTimer=0,distance=0,topSpeed=0;
+let currentLane=1; // 0=left, 1=center, 2=right
+let targetX=0;
+let baseSpeed=0.3,currentSpeed=0.3,maxSpeed=1.2;
+let boostFuel=100,boostActive=false,boostTimer=0;
+let shieldActive=false,shieldTimer=0;
+let roadSegments=[],obstacles=[],coins=[],pickups=[];
+let playerCar,shieldMesh;
+let clock;
+const LANE_WIDTH=3.5;
+const LANES=[-LANE_WIDTH,0,LANE_WIDTH];
+let isMobile=false;
+let swipeStartX=0,swipeStartY=0;
+let animMixers=[];
+
+// ========== INIT THREE.JS ==========
+function initScene(){
+scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x0a0012,0.012);
+
+camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,300);
+camera.position.set(0,4,8);
+camera.lookAt(0,1,-20);
+
+renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled=false;
+renderer.setClearColor(0x0a0012);
+document.body.appendChild(renderer.domElement);
+
+// Lights
+const ambientLight=new THREE.AmbientLight(0x1a0a2e,0.4);
+scene.add(ambientLight);
+
+const sunLight=new THREE.DirectionalLight(0xff6b00,0.6);
+sunLight.position.set(0,20,-50);
+scene.add(sunLight);
+
+const playerLight=new THREE.PointLight(0xff6b00,1.5,20);
+playerLight.position.set(0,3,5);
+scene.add(playerLight);
+
+// Sun sphere in the distance
+const sunGeo=new THREE.SphereGeometry(15,32,16);
+const sunMat=new THREE.MeshBasicMaterial({
+color:0xff6b00,
+transparent:true,
+opacity:0.8
+});
+const sun=new THREE.Mesh(sunGeo,sunMat);
+sun.position.set(0,8,-200);
+scene.add(sun);
+
+// Sun glow
+const glowGeo=new THREE.SphereGeometry(25,16,16);
+const glowMat=new THREE.MeshBasicMaterial({color:0xff2d95,transparent:true,opacity:0.15});
+const glow=new THREE.Mesh(glowGeo,glowMat);
+glow.position.copy(sun.position);
+scene.add(glow);
+
+// Starfield
+const starGeo=new THREE.BufferGeometry();
+const starVerts=[];
+for(let i=0;i<2000;i++){
+starVerts.push((Math.random()-0.5)*400, Math.random()*100+10, (Math.random()-0.5)*400-100);
+}
+starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starVerts,3));
+const starMat=new THREE.PointsMaterial({color:0xffffff,size:0.3,transparent:true,opacity:0.6});
+scene.add(new THREE.Points(starGeo,starMat));
+
+buildRoad();
+buildPlayer();
+buildSkyline();
+
+clock=new THREE.Clock();
+}
+
+// ========== ROAD ==========
+function buildRoad(){
+// Ground plane
+const groundGeo=new THREE.PlaneGeometry(200,600);
+const groundMat=new THREE.MeshStandardMaterial({color:0x0a0012,roughness:1});
+const ground=new THREE.Mesh(groundGeo,groundMat);
+ground.rotation.x=-Math.PI/2;
+ground.position.set(0,-0.1,-200);
+scene.add(ground);
+
+// Road segments
+for(let z=50;z>-250;z-=10){
+createRoadSegment(z);
+}
+}
+
+function createRoadSegment(z){
+// Road surface
+const roadGeo=new THREE.PlaneGeometry(14,10);
+const roadMat=new THREE.MeshStandardMaterial({
+color:0x1a0a2e,
+roughness:0.8,
+emissive:0x0a0012,
+emissiveIntensity:0.3
+});
+const road=new THREE.Mesh(roadGeo,roadMat);
+road.rotation.x=-Math.PI/2;
+road.position.set(0,0,z);
+scene.add(road);
+
+// Lane dividers (dashed lines)
+for(let lx=-LANE_WIDTH/2;lx<=LANE_WIDTH/2;lx+=LANE_WIDTH){
+if(Math.random()>0.5){
+const lineGeo=new THREE.PlaneGeometry(0.15,4);
+const lineMat=new THREE.MeshBasicMaterial({color:0xff6b0040,transparent:true,opacity:0.3});
+const line=new THREE.Mesh(lineGeo,lineMat);
+line.rotation.x=-Math.PI/2;
+line.position.set(lx,0.01,z);
+scene.add(line);
+}
+}
+
+// Edge glow strips
+for(let side of[-7.5,7.5]){
+const stripGeo=new THREE.PlaneGeometry(0.3,10);
+const stripMat=new THREE.MeshBasicMaterial({
+color:side<0?0xff2d95:0xff6b00,
+transparent:true,opacity:0.6
+});
+const strip=new THREE.Mesh(stripGeo,stripMat);
+strip.rotation.x=-Math.PI/2;
+strip.position.set(side,0.02,z);
+scene.add(strip);
+roadSegments.push({mesh:strip,z:z});
+}
+}
+
+// ========== SKYLINE BUILDINGS ==========
+function buildSkyline(){
+for(let i=0;i<60;i++){
+const side=i%2===0?-1:1;
+const h=Math.random()*15+5;
+const w=Math.random()*3+2;
+const d=Math.random()*3+2;
+const geo=new THREE.BoxGeometry(w,h,d);
+const mat=new THREE.MeshStandardMaterial({
+color:0x0f0020,
+emissive:i%5===0?0xff2d95:0xff6b00,
+emissiveIntensity:Math.random()*0.1+0.02
+});
+const building=new THREE.Mesh(geo,mat);
+building.position.set(
+side*(12+Math.random()*20),
+h/2,
+-Math.random()*250
+);
+scene.add(building);
+
+// Window lights
+if(Math.random()>0.5){
+const winGeo=new THREE.PlaneGeometry(w*0.8,h*0.8);
+const winMat=new THREE.MeshBasicMaterial({
+color:Math.random()>0.5?0xff6b00:0xff2d95,
+transparent:true,opacity:Math.random()*0.15+0.05
+});
+const win=new THREE.Mesh(winGeo,winMat);
+win.position.copy(building.position);
+win.position.x+=side*(-w/2-0.1);
+win.rotation.y=side*Math.PI/2;
+scene.add(win);
+}
+}
+}
+
+// ========== PLAYER CAR ==========
+function buildPlayer(){
+playerCar=new THREE.Group();
+
+// Body
+const bodyGeo=new THREE.BoxGeometry(2,0.6,4);
+const bodyMat=new THREE.MeshStandardMaterial({
+color:0xff6b00,
+emissive:0xff2d95,
+emissiveIntensity:0.3,
+metalness:0.8,
+roughness:0.2
+});
+const body=new THREE.Mesh(bodyGeo,bodyMat);
+body.position.y=0.5;
+playerCar.add(body);
+
+// Cockpit
+const cockGeo=new THREE.BoxGeometry(1.4,0.5,1.8);
+const cockMat=new THREE.MeshStandardMaterial({
+color:0x1a0a2e,
+emissive:0xff6b00,
+emissiveIntensity:0.1,
+metalness:0.9,
+roughness:0.1
+});
+const cockpit=new THREE.Mesh(cockGeo,cockMat);
+cockpit.position.set(0,1,0.2);
+playerCar.add(cockpit);
+
+// Front lights
+for(let x of[-0.7,0.7]){
+const lightGeo=new THREE.SphereGeometry(0.15,8,8);
+const lightMat=new THREE.MeshBasicMaterial({color:0xffdd00});
+const headlight=new THREE.Mesh(lightGeo,lightMat);
+headlight.position.set(x,0.5,-2);
+playerCar.add(headlight);
+}
+
+// Rear thrusters
+for(let x of[-0.6,0.6]){
+const thrustGeo=new THREE.CylinderGeometry(0.15,0.25,0.4,8);
+const thrustMat=new THREE.MeshBasicMaterial({color:0xff2d95});
+const thruster=new THREE.Mesh(thrustGeo,thrustMat);
+thruster.rotation.x=Math.PI/2;
+thruster.position.set(x,0.4,2.2);
+playerCar.add(thruster);
+}
+
+// Trail particles (simple planes)
+const trailGeo=new THREE.PlaneGeometry(0.3,2);
+const trailMat=new THREE.MeshBasicMaterial({color:0xff2d95,transparent:true,opacity:0.4,side:THREE.DoubleSide});
+for(let x of[-0.6,0.6]){
+const trail=new THREE.Mesh(trailGeo,trailMat);
+trail.position.set(x,0.4,3.5);
+trail.rotation.x=Math.PI/2;
+playerCar.add(trail);
+}
+
+// Shield mesh (invisible initially)
+const shieldGeo=new THREE.SphereGeometry(2.5,16,16);
+const shieldMat=new THREE.MeshBasicMaterial({
+color:0x06b6d4,transparent:true,opacity:0,side:THREE.DoubleSide
+});
+shieldMesh=new THREE.Mesh(shieldGeo,shieldMat);
+shieldMesh.position.y=0.7;
+playerCar.add(shieldMesh);
+
+playerCar.position.set(0,0.2,3);
+scene.add(playerCar);
+}
+
+// ========== OBSTACLES ==========
+function spawnObstacle(){
+const lane=Math.floor(Math.random()*3);
+const type=Math.random();
+
+let mesh;
+if(type<0.4){
+// Barrier
+const geo=new THREE.BoxGeometry(2.5,2,1);
+const mat=new THREE.MeshStandardMaterial({
+color:0xff0040,emissive:0xff0040,emissiveIntensity:0.4
+});
+mesh=new THREE.Mesh(geo,mat);
+mesh.position.y=1;
+}else if(type<0.7){
+// Cone cluster
+const group=new THREE.Group();
+for(let i=0;i<3;i++){
+const geo=new THREE.ConeGeometry(0.4,1.5,6);
+const mat=new THREE.MeshStandardMaterial({
+color:0xff6b00,emissive:0xff2d95,emissiveIntensity:0.3
+});
+const cone=new THREE.Mesh(geo,mat);
+cone.position.set((i-1)*0.8,0.75,0);
+group.add(cone);
+}
+mesh=group;
+}else{
+// Floating orb (harder to see)
+const geo=new THREE.IcosahedronGeometry(1,0);
+const mat=new THREE.MeshStandardMaterial({
+color:0xff0040,emissive:0xff0040,emissiveIntensity:0.6,
+wireframe:true
+});
+mesh=new THREE.Mesh(geo,mat);
+mesh.position.y=1.5;
+}
+
+mesh.position.x=LANES[lane];
+mesh.position.z=-200-Math.random()*50;
+scene.add(mesh);
+obstacles.push({mesh,lane});
+}
+
+// ========== COINS ==========
+function spawnCoin(){
+const lane=Math.floor(Math.random()*3);
+const geo=new THREE.TorusGeometry(0.4,0.12,8,16);
+const mat=new THREE.MeshBasicMaterial({color:0xffdd00});
+const coin=new THREE.Mesh(geo,mat);
+coin.position.set(LANES[lane],1.5,-200-Math.random()*30);
+coin.rotation.x=Math.PI/2;
+scene.add(coin);
+coins.push({mesh:coin});
+}
+
+// ========== PICKUPS ==========
+function spawnPickup(){
+const lane=Math.floor(Math.random()*3);
+const type=Math.random()>0.5?'shield':'boost';
+const geo=new THREE.OctahedronGeometry(0.6,0);
+const color=type==='shield'?0x06b6d4:0xffdd00;
+const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.8});
+const mesh=new THREE.Mesh(geo,mat);
+mesh.position.set(LANES[lane],1.8,-200);
+scene.add(mesh);
+pickups.push({mesh,type});
+}
+
+// ========== GAME LOGIC ==========
+function startGame(){
+initAudio();
+document.getElementById('startScreen').style.display='none';
+document.getElementById('hud').style.display='block';
+document.getElementById('boostContainer').style.display='block';
+document.getElementById('pauseBtn').style.display='flex';
+
+detectMobile();
+
+score=0;combo=0;comboTimer=0;distance=0;topSpeed=0;
+currentLane=1;targetX=0;
+baseSpeed=0.3;currentSpeed=0.3;
+boostFuel=100;boostActive=false;boostTimer=0;
+shieldActive=false;shieldTimer=0;
+gameOverState=false;gamePaused=false;gameRunning=true;
+
+// Clear old objects
+obstacles.forEach(o=>scene.remove(o.mesh));obstacles=[];
+coins.forEach(c=>scene.remove(c.mesh));coins=[];
+pickups.forEach(p=>scene.remove(p.mesh));pickups=[];
+
+if(playerCar) playerCar.position.set(0,0.2,3);
+
+startEngineDrone();
+clock.start();
+
+// Initial spawns
+for(let i=0;i<5;i++) spawnObstacle();
+for(let i=0;i<8;i++) spawnCoin();
+
+gameLoop();
+}
+
+function restartGame(){
+document.getElementById('gameOver').style.display='none';
+stopEngineDrone();
+startGame();
+}
+
+let lastSpawnDist=0,lastCoinDist=0,lastPickupDist=0;
+
+function gameLoop(){
+if(!gameRunning) return;
+if(gamePaused){requestAnimationFrame(gameLoop);return;}
+
+const delta=Math.min(clock.getDelta(),0.05);
+const elapsed=clock.getElapsedTime();
+
+// Speed increases over time
+baseSpeed=Math.min(maxSpeed,0.3+distance*0.0003);
+currentSpeed=boostActive?baseSpeed*1.8:baseSpeed;
+
+// Distance & speed display
+distance+=currentSpeed*2;
+const displaySpeed=Math.floor(currentSpeed*300);
+if(displaySpeed>topSpeed) topSpeed=displaySpeed;
+
+// Boost logic
+if(boostActive){
+boostTimer-=delta;
+boostFuel=Math.max(0,boostFuel-delta*20);
+if(boostTimer<=0||boostFuel<=0){
+boostActive=false;boostTimer=0;
+}
+}else{
+boostFuel=Math.min(100,boostFuel+delta*8);
+}
+
+// Shield timer
+if(shieldActive){
+shieldTimer-=delta;
+shieldMesh.material.opacity=0.3+Math.sin(elapsed*8)*0.15;
+if(shieldTimer<=0){
+shieldActive=false;
+shieldMesh.material.opacity=0;
+}
+}
+
+// Combo decay
+if(comboTimer>0){
+comboTimer-=delta;
+if(comboTimer<=0){combo=0;updateComboDisplay();}
+}
+
+// Player lane movement (smooth)
+targetX=LANES[currentLane];
+playerCar.position.x+=(targetX-playerCar.position.x)*0.12;
+
+// Car tilt on lane change
+const tiltTarget=(targetX-playerCar.position.x)*0.15;
+playerCar.rotation.z+=(tiltTarget-playerCar.rotation.z)*0.1;
+
+// Car hover animation
+playerCar.position.y=0.2+Math.sin(elapsed*3)*0.05;
+
+// Move & check obstacles
+for(let i=obstacles.length-1;i>=0;i--){
+const o=obstacles[i];
+o.mesh.position.z+=currentSpeed;
+// Rotation for visual flair
+if(o.mesh.rotation) o.mesh.rotation.y+=delta*2;
+
+if(o.mesh.position.z>10){
+scene.remove(o.mesh);
+obstacles.splice(i,1);
+score+=1;
+continue;
+}
+
+// Collision check
+if(o.mesh.position.z>1&&o.mesh.position.z<5){
+if(Math.abs(o.mesh.position.x-playerCar.position.x)<1.8){
+if(shieldActive){
+// Shield absorbs hit
+shieldActive=false;shieldTimer=0;
+shieldMesh.material.opacity=0;
+scene.remove(o.mesh);obstacles.splice(i,1);
+flashScreen('#06b6d4');
+sfxCoin();
+}else{
+gameOverHandler();
+return;
+}
+}
+}
+}
+
+// Move & check coins
+for(let i=coins.length-1;i>=0;i--){
+const c=coins[i];
+c.mesh.position.z+=currentSpeed;
+c.mesh.rotation.y+=delta*4;
+c.mesh.rotation.x+=delta*2;
+
+if(c.mesh.position.z>10){
+scene.remove(c.mesh);coins.splice(i,1);continue;
+}
+
+if(c.mesh.position.z>1&&c.mesh.position.z<6){
+if(Math.abs(c.mesh.position.x-playerCar.position.x)<2){
+scene.remove(c.mesh);coins.splice(i,1);
+combo++;comboTimer=2;
+const points=10*Math.max(1,combo);
+score+=points;
+sfxCoin();
+showCoinPopup('+'+points);
+updateComboDisplay();
+}
+}
+}
+
+// Move & check pickups
+for(let i=pickups.length-1;i>=0;i--){
+const p=pickups[i];
+p.mesh.position.z+=currentSpeed;
+p.mesh.rotation.y+=delta*3;
+p.mesh.rotation.x+=delta*2;
+
+if(p.mesh.position.z>10){
+scene.remove(p.mesh);pickups.splice(i,1);continue;
+}
+
+if(p.mesh.position.z>1&&p.mesh.position.z<6){
+if(Math.abs(p.mesh.position.x-playerCar.position.x)<2){
+scene.remove(p.mesh);pickups.splice(i,1);
+if(p.type==='shield'){
+shieldActive=true;shieldTimer=8;
+flashScreen('#06b6d4');
+sfxCoin();
+}else{
+boostFuel=100;
+flashScreen('#ffdd00');
+sfxBoost();
+}
+}
+}
+}
+
+// Spawning
+if(distance-lastSpawnDist>30+Math.random()*20){
+spawnObstacle();
+// Sometimes spawn double
+if(Math.random()>0.6&&distance>500) spawnObstacle();
+lastSpawnDist=distance;
+}
+if(distance-lastCoinDist>15+Math.random()*10){
+spawnCoin();
+if(Math.random()>0.5) spawnCoin();
+lastCoinDist=distance;
+}
+if(distance-lastPickupDist>200+Math.random()*150){
+spawnPickup();
+lastPickupDist=distance;
+}
+
+// Move road segments for illusion
+roadSegments.forEach(s=>{
+s.mesh.position.z+=currentSpeed;
+if(s.mesh.position.z>50){
+s.mesh.position.z-=300;
+}
+// Pulse edge strips
+s.mesh.material.opacity=0.4+Math.sin(elapsed*4+s.z*0.1)*0.3;
+});
+
+// Update HUD
+document.getElementById('scoreDisplay').textContent=score;
+document.getElementById('speedDisplay').textContent=displaySpeed;
+document.getElementById('distDisplay').textContent=Math.floor(distance);
+document.getElementById('boostFill').style.width=boostFuel+'%';
+
+// Boost bar color
+const boostFillEl=document.getElementById('boostFill');
+if(boostActive){
+boostFillEl.style.background='linear-gradient(90deg,#ffdd00,#ff6b00)';
+}else{
+boostFillEl.style.background='linear-gradient(90deg,#ff2d95,#ff6b00,#ffdd00)';
+}
+
+// Camera shake on boost
+if(boostActive){
+camera.position.x=Math.sin(elapsed*20)*0.1;
+camera.position.y=4+Math.sin(elapsed*15)*0.05;
+}else{
+camera.position.x+=(0-camera.position.x)*0.1;
+camera.position.y+=(4-camera.position.y)*0.1;
+}
+
+updateEngineDrone(displaySpeed);
+
+renderer.render(scene,camera);
+requestAnimationFrame(gameLoop);
+}
+
+function gameOverHandler(){
+gameRunning=false;gameOverState=true;
+sfxCrash();
+stopEngineDrone();
+flashScreen('#ff0040');
+
+// Shake camera
+let shakes=0;
+const shakeInterval=setInterval(()=>{
+camera.position.x=(Math.random()-0.5)*0.5;
+camera.position.y=4+(Math.random()-0.5)*0.3;
+shakes++;
+if(shakes>15){
+clearInterval(shakeInterval);
+camera.position.x=0;camera.position.y=4;
+showGameOver();
+}
+},30);
+}
+
+function showGameOver(){
+document.getElementById('finalScore').textContent=score;
+document.getElementById('finalDetails').textContent=
+`Distance: ${Math.floor(distance)}m | Top Speed: ${topSpeed} KM/H`;
+document.getElementById('gameOver').style.display='flex';
+}
+
+function togglePause(){
+if(gameOverState) return;
+gamePaused=!gamePaused;
+document.getElementById('pauseOverlay').style.display=gamePaused?'flex':'none';
+document.getElementById('pauseBtn').textContent=gamePaused?'▶':'⏸';
+if(!gamePaused) clock.getDelta(); // reset delta
+}
+
+function backToHub(){
+stopEngineDrone();
+window.location.href='multiplayer.html';
+}
+
+// ========== CONTROLS ==========
+// Keyboard
+document.addEventListener('keydown',e=>{
+if(!gameRunning||gamePaused) return;
+if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A'){
+changeLane(-1);
+}else if(e.key==='ArrowRight'||e.key==='d'||e.key==='D'){
+changeLane(1);
+}else if(e.key===' '){
+e.preventDefault();
+activateBoost();
+}else if(e.key==='Escape'){
+togglePause();
+}
+});
+
+function changeLane(dir){
+const newLane=currentLane+dir;
+if(newLane>=0&&newLane<=2){
+currentLane=newLane;
+sfxLaneChange();
+}
+}
+
+function activateBoost(){
+if(boostFuel>20&&!boostActive){
+boostActive=true;
+boostTimer=2;
+sfxBoost();
+flashScreen('#ffdd0030');
+}
+}
+
+function mobileLeft(){changeLane(-1);}
+function mobileRight(){changeLane(1);}
+
+// Touch swipe
+let touchStartX=0;
+document.addEventListener('touchstart',e=>{
+touchStartX=e.touches[0].clientX;
+},{passive:true});
+document.addEventListener('touchend',e=>{
+if(!gameRunning||gamePaused) return;
+const dx=e.changedTouches[0].clientX-touchStartX;
+if(Math.abs(dx)>40){
+changeLane(dx>0?1:-1);
+}
+},{passive:true});
+
+// ========== MOBILE DETECTION ==========
+function detectMobile(){
+isMobile='ontouchstart' in window || navigator.maxTouchPoints>0;
+document.getElementById('mobileControls').style.display=isMobile?'flex':'none';
+}
+
+// ========== UI HELPERS ==========
+function updateComboDisplay(){
+const el=document.getElementById('comboDisplay');
+if(combo>1){
+el.textContent='🔥 x'+combo+' COMBO';
+el.style.transform='scale(1.2)';
+setTimeout(()=>el.style.transform='scale(1)',200);
+}else{
+el.textContent='';
+}
+}
+
+function showCoinPopup(text){
+const popup=document.createElement('div');
+popup.className='coin-popup';
+popup.textContent=text;
+popup.style.left=(Math.random()*40+30)+'%';
+popup.style.top=(Math.random()*20+20)+'%';
+document.body.appendChild(popup);
+setTimeout(()=>popup.remove(),800);
+}
+
+function flashScreen(color){
+const el=document.getElementById('screenFlash');
+el.style.background=color;
+el.style.opacity='0.3';
+setTimeout(()=>el.style.opacity='0',150);
+}
+
+// ========== RESIZE ==========
+window.addEventListener('resize',()=>{
+if(!camera||!renderer) return;
+camera.aspect=window.innerWidth/window.innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+// ========== INIT ==========
+initScene();
+
+// Pre-render one frame for start screen background
+renderer.render(scene,camera);
+</script>
+</body>
+</html>
